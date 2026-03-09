@@ -10,7 +10,10 @@ import {
   Loader2,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck,
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -37,6 +40,7 @@ const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab:
     { id: 'courses', icon: BookOpen, label: 'My Courses' },
     { id: 'assignments', icon: Upload, label: 'Assignment Portal' },
     { id: 'help', icon: MessageSquare, label: 'Help Center' },
+    { id: 'admin', icon: ShieldCheck, label: 'Admin Panel' },
   ];
 
   return (
@@ -74,6 +78,146 @@ const Sidebar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab:
             <p className="text-sm font-semibold">Student User</p>
             <p className="text-[10px] opacity-50">Full-Stack Track</p>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminPortal = () => {
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAssignments();
+  }, []);
+
+  const fetchAssignments = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/assignments');
+      const data = await res.json();
+      setAssignments(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateStatus = async (id: number, status: string) => {
+    try {
+      await fetch(`/api/assignments/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      fetchAssignments();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteAssignment = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this submission?')) return;
+    try {
+      await fetch(`/api/assignments/${id}`, { method: 'DELETE' });
+      fetchAssignments();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <header className="flex justify-between items-end">
+        <div>
+          <h2 className="text-3xl font-bold text-[#000033]">Admin Panel</h2>
+          <p className="text-slate-500">Manage student submissions and track progress.</p>
+        </div>
+        <button 
+          onClick={fetchAssignments}
+          className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"
+        >
+          <Clock size={20} />
+        </button>
+      </header>
+
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Student</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Project</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Submitted</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
+                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <Loader2 className="animate-spin mx-auto text-slate-300" size={32} />
+                  </td>
+                </tr>
+              ) : assignments.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
+                    No submissions found.
+                  </td>
+                </tr>
+              ) : (
+                assignments.map((a) => (
+                  <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-[#000033] font-bold text-xs">
+                          {a.student_name.charAt(0)}
+                        </div>
+                        <span className="font-medium text-slate-700">{a.student_name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-800">{a.title}</span>
+                        <a href={a.link} target="_blank" rel="noreferrer" className="text-xs text-blue-500 flex items-center gap-1 hover:underline">
+                          View Link <ExternalLink size={10} />
+                        </a>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-500">
+                      {new Date(a.submitted_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      <select 
+                        value={a.status}
+                        onChange={(e) => updateStatus(a.id, e.target.value)}
+                        className={`text-xs font-bold px-3 py-1 rounded-full border-none focus:ring-2 focus:ring-offset-2 transition-all cursor-pointer ${
+                          a.status === 'Graded' ? 'bg-green-100 text-green-700' :
+                          a.status === 'Resubmit' ? 'bg-red-100 text-red-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        <option value="Pending Review">Pending Review</option>
+                        <option value="Graded">Graded</option>
+                        <option value="Resubmit">Resubmit</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => deleteAssignment(a.id)}
+                        className="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -371,6 +515,7 @@ export default function App() {
             {activeTab === 'dashboard' && <Dashboard />}
             {activeTab === 'assignments' && <AssignmentPortal />}
             {activeTab === 'help' && <HelpCenter />}
+            {activeTab === 'admin' && <AdminPortal />}
             {activeTab === 'courses' && (
               <div className="text-center py-20">
                 <BookOpen size={48} className="mx-auto text-slate-200 mb-4" />

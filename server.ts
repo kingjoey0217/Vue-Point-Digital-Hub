@@ -40,6 +40,19 @@ async function startServer() {
     res.json({ id: info.lastInsertRowid, status: 'Pending Review' });
   });
 
+  app.patch("/api/assignments/:id", (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+    db.prepare("UPDATE assignments SET status = ? WHERE id = ?").run(status, id);
+    res.json({ success: true });
+  });
+
+  app.delete("/api/assignments/:id", (req, res) => {
+    const { id } = req.params;
+    db.prepare("DELETE FROM assignments WHERE id = ?").run(id);
+    res.json({ success: true });
+  });
+
   app.post("/api/chat", async (req, res) => {
     const { message } = req.body;
     const apiKey = process.env.GEMINI_API_KEY;
